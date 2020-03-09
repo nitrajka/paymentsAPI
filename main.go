@@ -21,4 +21,4 @@ func main() {
 //GET /payments/{id} -> list 1 payment
 //POST payment       -> save to db and returning its id
 
-//todo: use context, set up db, use docker, atomic, payment timestamp, vypisovat vsetko na konzolu, klient
+//todo: use context, set up db, atomic, payment timestamp, vypisovat vsetko na konzolu, klient
