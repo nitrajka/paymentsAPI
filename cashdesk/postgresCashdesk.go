@@ -18,7 +18,7 @@ type dbCashDesk struct {
 func NewDBCashDesk() (*dbCashDesk, error) {
 	conn, err := sql.Open(
 		"postgres",
-		"user=postgres password=password dbname=dev port=5431 sslmode=disable")
+		"user=postgres password=password dbname=dev port=5432 host=database_postgres sslmode=disable")
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to db: %v", err)
 	}

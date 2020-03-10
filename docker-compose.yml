@@ -1,6 +1,7 @@
 version: '3'
 services:
   db:
+    container_name: database_postgres
     image: postgres
     volumes:
       - ./schema.sql:/schema.sql
@@ -10,17 +11,23 @@ services:
       POSTGRES_PASSWORD: password
     ports:
       - 5431:5432
+    networks:
+      - backend
   app:
     container_name: payments_go_app
     build:
       dockerfile: Dockerfile
       context: .
-    command: bash -c "./wait-for-it.sh db:5432 -- go build main.go && ./main"
+    command: bash -c "go get github.com/lib/pq && go build main.go && ./main"
     volumes:
       - .:/go/src/github.com/nitrajka/paymentsFutured
     ports:
-      - "5000:5000"
+      - 5000:5000
     depends_on:
       - db
     links:
       - db
+    networks:
+      - backend
+networks:
+  backend:
