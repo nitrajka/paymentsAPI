@@ -1,12 +1,13 @@
 package cashdesk
 
 import (
-	"github.com/nitrajka/paymentsFutured/payment"
+	"context"
+	"github.com/nitrajka/paymentsFutured/postgres"
 )
 
 type CashDesk interface {
-	GetPayment(id int) (payment.Payment, error)
-	GetPayments() []payment.Payment
-	SavePayment(payment payment.Payment) payment.Payment
-	GetBalance() float64
+	GetPayment(ctx context.Context,id int32) (postgres.Payment, error)
+	GetPayments(ctx context.Context) ([]postgres.Payment, error)
+	SavePayment(ctx context.Context, payment postgres.CreatePaymentParams) (postgres.Payment, error)
+	GetBalance(ctx context.Context) (float64, error)
 }

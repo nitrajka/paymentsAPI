@@ -3,12 +3,12 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nitrajka/paymentsFutured/postgres"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/pat"
 	"github.com/nitrajka/paymentsFutured/cashdesk"
-	"github.com/nitrajka/paymentsFutured/payment"
 )
 
 type PaymentServer struct {
@@ -34,7 +34,7 @@ func NotFoundPaymentError(id int) string {
 }
 
 func InvalidBodyError(body string) string {
-	return fmt.Sprintf("invalid parameters %v:", body)
+	return fmt.Sprintf("invalid parameters: %v\n", body)
 }
 
 func (p *PaymentServer) GetPayment(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +46,7 @@ func (p *PaymentServer) GetPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payment, err := p.cashDesk.GetPayment(id)
+	payment, err := p.cashDesk.GetPayment(r.Context(), int32(id))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(w, NotFoundPaymentError(id))
@@ -59,21 +59,28 @@ func (p *PaymentServer) GetPayment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *PaymentServer) GetPayments(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(p.cashDesk.GetPayments())
-}
-
-func (p *PaymentServer) PostPayment(w http.ResponseWriter, r *http.Request) {
-	var paym payment.Payment
-	err := json.NewDecoder(r.Body).Decode(&paym)
+	payments, err := p.cashDesk.GetPayments(r.Context())
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, InvalidBodyError("check the fields of payment type"))
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, fmt.Sprintf("could not response: %v", err))
 		return
 	}
 
-	paym = p.cashDesk.SavePayment(paym)
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(payments)
+}
+
+func (p *PaymentServer) PostPayment(w http.ResponseWriter, r *http.Request) {
+	var paymParams postgres.CreatePaymentParams
+	err := json.NewDecoder(r.Body).Decode(&paymParams)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, InvalidBodyError(fmt.Sprintf("check the fields of payment type: %v", err)))
+		return
+	}
+
+	paym, err := p.cashDesk.SavePayment(r.Context(), paymParams)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(paym)
 }

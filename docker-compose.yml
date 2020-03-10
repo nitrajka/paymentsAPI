@@ -3,7 +3,7 @@ services:
   db:
     image: postgres
     volumes:
-      - ./createDB.sql:/createDB.sql
+      - ./schema.sql:/schema.sql
     environment:
       POSTGRES_DB: dev
       POSTGRES_USER: postgres
