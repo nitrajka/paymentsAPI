@@ -1,4 +1,4 @@
-### Server which receives and lists payments
+## Server which receives and lists payments
 I made this project as an interview assignment. I used https://github.com/kyleconroy/sqlc
 to generate /postgres folder from sqlc.yaml.
 
@@ -8,7 +8,7 @@ it stores these values as strings. Therefore I decided I do not want to implemen
 As this project will not be deployed and used anywhere, I decided to use float64 and float for money type.
 
 
-####To run the app in production mode
+#### To run the app in production mode
 
 ```
 make up
@@ -23,19 +23,19 @@ Go to http://localhost:5000/payments/ or use curl to make requests.
 make down
 ```
 
-###To run the app in development mode
+### To run the app in development mode
 ```
 make updb
 make createdb
 go run main.go -dbport=5431 -dbhost=localhost
 ```
 
-#####To log to db in container
+##### To log to db in container
 ``` 
 psql -h localhost -p 5432 -U postgres -d dev
 ```
 
-###Client
+### Client
 
 ##### Create payment
 ```
