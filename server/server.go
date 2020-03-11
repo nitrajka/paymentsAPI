@@ -3,7 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
 	"strconv"
 
 	"github.com/nitrajka/paymentsFutured/postgres"
@@ -22,12 +25,33 @@ func NewPaymentServer(cashDesk cashdesk.CashDesk) *PaymentServer {
 	p.cashDesk = cashDesk
 
 	router := pat.New()
-	router.Get("/payments/{id}", p.GetPayment)
-	router.Get("/payments/", p.GetPayments)
-	router.Post("/payments/", p.PostPayment)
+	router.Get("/payments/{id}", logHandler(p.GetPayment))
+	router.Get("/payments/", logHandler(p.GetPayments))
+	router.Post("/payments/", logHandler(p.PostPayment))
 
 	p.Handler = router
 	return p
+}
+
+func logHandler(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		x, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
+			return
+		}
+		log.Println(fmt.Sprintf("%q", x))
+		rec := httptest.NewRecorder()
+		fn(rec, r)
+		log.Println(fmt.Sprintf("%q", rec.Body))
+
+		// this copies the recorded response to the response writer
+		for k, v := range rec.Header() {
+			w.Header()[k] = v
+		}
+		w.WriteHeader(rec.Code)
+		rec.Body.WriteTo(w)
+	}
 }
 
 func NotFoundPaymentError(err error) string {
@@ -35,7 +59,7 @@ func NotFoundPaymentError(err error) string {
 }
 
 func InvalidBodyError(err error) string {
-	return fmt.Sprintf("invalid body parameters: %v.\n", err)
+	return fmt.Sprintf("Could not create payment, invalid body parameters: %v.\n", err)
 }
 
 func InternalServerError(err error) string {

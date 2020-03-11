@@ -3,9 +3,10 @@
 ```
 make up
 make createdb
+make bringtofg
 ```
 
-Go to http://localhost:5000/payments/
+Go to http://localhost:5000/payments/ or use curl to make requests.
 
 ##### To stop the container
 ```
@@ -19,7 +20,7 @@ make createdb
 go run main.go -dbport=5431 -dbhost=localhost
 ```
 
-#####To log in to db in container
+#####To log to db in container
 ``` 
 psql -h localhost -p 5432 -U postgres -d dev
 ```

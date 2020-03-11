@@ -127,6 +127,21 @@ func TestPostPayment(t *testing.T) {
 		assertPayments(t, response.Body, cashD)
 		assertBalance(t, cashD.balance, 20)
 	})
+
+	t.Run("test assert invalid payment when save", func(t *testing.T) {
+		tm := time.Now().String() + "Z"
+		p := struct {
+			Amount float64
+			Description int
+			Sender string
+			Datetime string
+		}{Amount: 10, Description: 43, Sender: "anonymous", Datetime: tm}
+
+		request := newPostPaymentRequestInvalid(t, p)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, request)
+		assertStatus(t, response.Code, http.StatusBadRequest)
+	})
 }
 
 func getPaymentFromResponse(t *testing.T, r io.Reader) (payment postgres.Payment) {
@@ -202,6 +217,21 @@ func newPostPaymentRequest(t *testing.T, p postgres.CreatePaymentParams) *http.R
 	var body bytes.Buffer
 
 	err := json.NewEncoder(&body).Encode(p)
+	if err != nil {
+		t.Errorf("something went wrong creating a request: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "/payments/", &body)
+	if err != nil {
+		t.Errorf("something went wrong creating a request: %v", err)
+	}
+	return req
+}
+
+func newPostPaymentRequestInvalid(t *testing.T, i interface{}) *http.Request {
+	var body bytes.Buffer
+
+	err := json.NewEncoder(&body).Encode(i)
 	if err != nil {
 		t.Errorf("something went wrong creating a request: %v", err)
 	}
