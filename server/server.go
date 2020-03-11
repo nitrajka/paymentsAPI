@@ -3,9 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nitrajka/paymentsFutured/postgres"
 	"net/http"
 	"strconv"
+
+	"github.com/nitrajka/paymentsFutured/postgres"
 
 	"github.com/gorilla/pat"
 	"github.com/nitrajka/paymentsFutured/cashdesk"
@@ -29,58 +30,74 @@ func NewPaymentServer(cashDesk cashdesk.CashDesk) *PaymentServer {
 	return p
 }
 
-func NotFoundPaymentError(id int) string {
-	return fmt.Sprintf("Payment with id: %v does not exist", id)
+func NotFoundPaymentError(err error) string {
+	return fmt.Sprintf("Payment with id: %v does not exist.\n", err)
 }
 
-func InvalidBodyError(body string) string {
-	return fmt.Sprintf("invalid parameters: %v\n", body)
+func InvalidBodyError(err error) string {
+	return fmt.Sprintf("invalid body parameters: %v.\n", err)
+}
+
+func InternalServerError(err error) string {
+	return fmt.Sprintf("oops, something went wrong, try later: %v.\n", err)
 }
 
 func (p *PaymentServer) GetPayment(w http.ResponseWriter, r *http.Request) {
-	paymentId := r.URL.Query().Get(":id")
-	id, err := strconv.Atoi(paymentId)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(w, fmt.Sprintf("invalid id: %v", paymentId))
+	paymentID := r.URL.Query().Get(":id")
+	id, err := strconv.Atoi(paymentID)
+
+	if p.checkErrAndMaybeFailResponse(
+		err, NotFoundPaymentError(fmt.Errorf("payment with id %v not found", paymentID)),
+		http.StatusNotFound, w) {
 		return
 	}
 
 	payment, err := p.cashDesk.GetPayment(r.Context(), int32(id))
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, NotFoundPaymentError(id))
-		return
+	if !p.checkErrAndMaybeFailResponse(
+		err, NotFoundPaymentError(fmt.Errorf("payment with id %v not found", paymentID)),
+		http.StatusNotFound, w) {
+		p.encodeJSONAndMaybeSucceed(payment, w)
 	}
-
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(payment)
 }
 
 func (p *PaymentServer) GetPayments(w http.ResponseWriter, r *http.Request) {
 	payments, err := p.cashDesk.GetPayments(r.Context())
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, fmt.Sprintf("could not response: %v", err))
+	if p.checkErrAndMaybeFailResponse(err, InternalServerError(err), http.StatusInternalServerError, w) {
 		return
 	}
 
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(payments)
+	p.encodeJSONAndMaybeSucceed(payments, w)
 }
 
 func (p *PaymentServer) PostPayment(w http.ResponseWriter, r *http.Request) {
 	var paymParams postgres.CreatePaymentParams
 	err := json.NewDecoder(r.Body).Decode(&paymParams)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, InvalidBodyError(fmt.Sprintf("check the fields of payment type: %v", err)))
+	if p.checkErrAndMaybeFailResponse(err, InvalidBodyError(err), http.StatusBadRequest, w) {
 		return
 	}
 
-	paym, err := p.cashDesk.SavePayment(r.Context(), paymParams)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(paym)
+	payment, err := p.cashDesk.SavePayment(r.Context(), paymParams)
+	if !p.checkErrAndMaybeFailResponse(err, InternalServerError(err), http.StatusInternalServerError, w) {
+		p.encodeJSONAndMaybeSucceed(payment, w)
+	}
+}
+
+func (p *PaymentServer) encodeJSONAndMaybeSucceed(i interface{}, w http.ResponseWriter) {
+	w.Header().Set("content-type", "application/json")
+	err := json.NewEncoder(w).Encode(i)
+
+	if !p.checkErrAndMaybeFailResponse(
+		err, InternalServerError(fmt.Errorf("could not encode response: %v", err)),
+		http.StatusInternalServerError, w) {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (p *PaymentServer) checkErrAndMaybeFailResponse(err error, responseError string, status int, w http.ResponseWriter) (failed bool) {
+	if err != nil {
+		w.WriteHeader(status)
+		fmt.Fprintf(w, responseError)
+		return true
+	}
+	return false
 }

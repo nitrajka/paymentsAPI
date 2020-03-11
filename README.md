@@ -1,7 +1,5 @@
 ####To run the app in production mode
 
-Download: https://github.com/vishnubob/wait-for-it
-
 ```
 make up
 make createdb
@@ -18,7 +16,7 @@ make down
 ```
 make updb
 make createdb
-go run main.go
+go run main.go -dbport=5431 -dbhost=localhost
 ```
 
 #####To log in to db in container
@@ -41,4 +39,9 @@ curl -X GET http://localhost:5000/payments/{id}
 ##### Get all payments
 ```
 curl -X GET http://localhost:5000/payments/
+```
+
+### Linter
+```
+golangci-lint run --fix
 ```

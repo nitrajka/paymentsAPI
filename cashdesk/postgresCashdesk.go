@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/nitrajka/paymentsFutured/postgres"
 	"math"
+
+	"github.com/nitrajka/paymentsFutured/postgres"
 
 	_ "github.com/lib/pq" // here
 )
@@ -14,11 +15,10 @@ type dbCashDesk struct {
 	db *postgres.Queries
 }
 
-
-func NewDBCashDesk() (*dbCashDesk, error) {
+func NewDBCashDesk(port, host string) (*dbCashDesk, error) {
 	conn, err := sql.Open(
 		"postgres",
-		"user=postgres password=password dbname=dev port=5432 host=database_postgres sslmode=disable")
+		"user=postgres password=password dbname=dev port="+port+" host="+host+" sslmode=disable")
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to db: %v", err)
 	}
@@ -28,7 +28,7 @@ func NewDBCashDesk() (*dbCashDesk, error) {
 }
 
 func (d *dbCashDesk) GetPayment(ctx context.Context, id int32) (postgres.Payment, error) {
-	p, err := d.db.GetPayment(ctx , id)
+	p, err := d.db.GetPayment(ctx, id)
 	if err != nil {
 		return postgres.Payment{}, fmt.Errorf("error retrieving payment with id %v: %v", id, err)
 	}

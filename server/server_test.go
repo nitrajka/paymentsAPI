@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nitrajka/paymentsFutured/postgres"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/nitrajka/paymentsFutured/postgres"
 
 	"github.com/nitrajka/paymentsFutured/cashdesk"
 )
@@ -55,8 +56,8 @@ func (s *stubStore) GetBalance(ctx context.Context) (float64, error) {
 func TestGetPayment(t *testing.T) {
 	store := &stubStore{
 		payments: map[int]postgres.Payment{
-			0: {0, 10, "fst payment", "anonymous", time.Now()},
-			1: {1, 10, "snd payment", "anonymous", time.Now()},
+			0: {ID: 0, Amount: 10, Description: "fst payment", Sender: "anonymous", Datetime: time.Now()},
+			1: {ID: 1, Amount: 10, Description: "snd payment", Sender: "anonymous", Datetime: time.Now()},
 		}, balance: 0}
 
 	server := NewPaymentServer(store)
@@ -77,7 +78,7 @@ func TestGetPayment(t *testing.T) {
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, request)
-		assertStatus(t, response.Code, http.StatusBadRequest)
+		assertStatus(t, response.Code, http.StatusNotFound)
 	})
 
 	t.Run("test get all payments", func(t *testing.T) {
@@ -92,14 +93,14 @@ func TestGetPayment(t *testing.T) {
 
 func TestPostPayment(t *testing.T) {
 	cashD := &stubStore{payments: map[int]postgres.Payment{
-		0: {0, 10,"fst payment", "anonymous", time.Now()},
+		0: {ID: 0, Amount: 10, Description: "fst payment", Sender: "anonymous", Datetime: time.Now()},
 	}, balance: 0}
 	server := NewPaymentServer(cashD)
 
 	t.Run("test get created payment in response", func(t *testing.T) {
 		tm := time.Now()
-		p :=  postgres.CreatePaymentParams{10, "snd payment", "anonymous", tm}
-		expected := postgres.Payment{1, 10, "snd payment", "anonymous", tm}
+		p := postgres.CreatePaymentParams{Amount: 10, Description: "snd payment", Sender: "anonymous", Datetime: tm}
+		expected := postgres.Payment{ID: 1, Amount: 10, Description: "snd payment", Sender: "anonymous", Datetime: tm}
 		request := newPostPaymentRequest(t, p)
 		response := httptest.NewRecorder()
 
@@ -111,8 +112,8 @@ func TestPostPayment(t *testing.T) {
 
 	t.Run("test save second payment", func(t *testing.T) {
 		tm := time.Now()
-		p := postgres.CreatePaymentParams{10, "trd payment", "anonymous", tm}
-		expected := postgres.Payment{2, 10,"trd payment", "anonymous", tm}
+		p := postgres.CreatePaymentParams{Amount: 10, Description: "trd payment", Sender: "anonymous", Datetime: tm}
+		expected := postgres.Payment{ID: 2, Amount: 10, Description: "trd payment", Sender: "anonymous", Datetime: tm}
 		request := newPostPaymentRequest(t, p)
 		response := httptest.NewRecorder()
 
@@ -184,11 +185,12 @@ func assertPayments(t *testing.T, body io.Reader, store cashdesk.CashDesk) {
 	}
 }
 
-func paymentsEqual(p1 postgres.Payment, p2 postgres.Payment) bool {
+func paymentsEqual(p1, p2 postgres.Payment) bool {
 	return p1.ID == p2.ID && p1.Description == p2.Description &&
 		p1.Sender == p2.Sender && p1.Amount == p2.Amount &&
-		fmt.Sprintf("%s", p1.Datetime.Local()) == fmt.Sprintf("%s", p2.Datetime.Local())
+		p1.Datetime.Local().String() == p2.Datetime.Local().String()
 }
+
 func assertPayment(t *testing.T, actual, expected postgres.Payment) {
 	t.Helper()
 	if !paymentsEqual(actual, expected) {
@@ -198,7 +200,12 @@ func assertPayment(t *testing.T, actual, expected postgres.Payment) {
 
 func newPostPaymentRequest(t *testing.T, p postgres.CreatePaymentParams) *http.Request {
 	var body bytes.Buffer
-	json.NewEncoder(&body).Encode(p)
+
+	err := json.NewEncoder(&body).Encode(p)
+	if err != nil {
+		t.Errorf("something went wrong creating a request: %v", err)
+	}
+
 	req, err := http.NewRequest(http.MethodPost, "/payments/", &body)
 	if err != nil {
 		t.Errorf("something went wrong creating a request: %v", err)

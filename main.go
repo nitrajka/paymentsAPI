@@ -1,8 +1,8 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -11,16 +11,25 @@ import (
 )
 
 func main() {
-	dbCashDesk, err := cashdesk.NewDBCashDesk()
+	port := flag.String("dbport", "5431", "use 5432 when running go ap in docker, else 5431")
+	host := flag.String("dbhost", "localhost", "use database_postgres when running app in docker, else localhost")
+	flag.Parse()
+
+	dbCashDesk, err := cashdesk.NewDBCashDesk(*port, *host)
 	if err != nil {
-		fmt.Printf("could not establish connection with cahdesk: %v", err)
-		os.Exit(1)
+		exit(fmt.Sprintf("could not establish connection with cahdesk: %v", err))
 	}
-	fmt.Println("connection with db established")
+	fmt.Printf("connection with db established on port: %v on host: %v\n", *port, *host)
+
 	s := server.NewPaymentServer(dbCashDesk)
 	if err := http.ListenAndServe(":5000", s); err != nil {
-		log.Fatalf("could not listen on port 5000 %v", err)
+		exit(fmt.Sprintf("could not listen on port 5000 %v", err))
 	}
+}
+
+func exit(msg string) {
+	fmt.Println(msg)
+	os.Exit(1)
 }
 
 //todo: vypisovat vsetko na konzolu
